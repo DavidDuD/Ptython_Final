@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Facial expression monitoring matches songs</title>
+		<meta charset="utf-8">
+		<link rel="stylesheet" href="/dist/css/smusic.min.css">
+		<script src="/dist/js/jquery.min.js"></script>
+		<script>
+			jQuery.noConflict();
+		</script>
+
+		<style>
+				body {
+                	background-color: #f2f2f2
+                }
+                .neumorphism-outer {
+                	border: none !important;
+                	-webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, .2), -5px -5px 5px #fff;
+                	box-shadow: 5px 5px 5px rgba(0, 0, 0, .2), -5px -5px 5px #fff;
+                	border-radius: 20px !important;
+                	text-align: center;
+                	padding: 0.5em
+                }
+				
+				button:hover {
+                	border: none !important;
+                	-webkit-box-shadow: inset 5px 5px 5px rgba(0, 0, 0, .2), inset -5px -5px 5px #fff;
+                	box-shadow: inset 5px 5px 5px rgba(0, 0, 0, .2), inset -5px -5px 5px #fff;
+                	border-radius: 20px !important;
+                	text-align: center;
+                	padding: 0.5em
+                }
+		</style>
+	</head>
+	
+	<body>
+		<div class="neumorphism-outer" style="background: rgba(240, 240, 240, 0.8); border-radius: 15px; text-align: center;">
+			<div style="display: flex; justify-content: center; margin: auto;gap: 5px;">
+				<video id="video" width="400px" height="400px" autoplay="autoplay"></video>
+				<canvas id="canvas" width="400px" height="400px"></canvas>
+			</div>
+			<div style="display: flex; justify-content: center; margin: auto; gap: 5px;">
+				<div style="height: 50px; width: 400px;  text-align: center;">
+					<button class="neumorphism-outer" id="snap" onclick="takePhoto()" style="width: 120px; height: 50px; background: rgba(240, 240, 240, 0.8); border-radius: 5px; margin: 5px;">Take photo</button>
+				</div>
+				<div id="sp" style="height: 50px; width: 400px; text-align: center;">
+					<button id="submit" class="neumorphism-outer" style="width: 120px; height: 50px; background: rgba(240, 240, 240, 0.8); border-radius: 5px; margin: 5px;">Predict photo</button>
+				</div>
+			</div>
+			<div id="result" style="height: 60px; line-height: 60px; color: red;"></div>
+			<div style="height: 10px;"></div>
+			
+			<div style="display: flex; justify-content: center; margin: auto; gap: 5px;">
+			<div style="width: 805px; background: white; border-radius: 5px;">
+				<article class="wrapper" style="padding-left: calc(50% - 320px);">
+					<div id="smusic" style="width: 640px;"></div>
+				</article>
+
+				<script src="/dist/js/songList.js"></script>
+				<script src="/dist/js/mo.js"></script>
+				<script src="/dist/js/smusic.min.js"></script>
+	
+				<script>
+					var $ = function (id) {
+						return document.getElementById(id)
+					}
+
+					var smusic = SMusic(songList, {
+						container: $('smusic'),
+						panel: 'list',
+						autoPlay: false,
+					});
+					
+					smusic.init();
+
+					$('getCurrentMusic').addEventListener('click', function () {
+						var data = smusic.getCurrentInfo();
+						var info = '';
+						if (data) {
+							for (var k in data) {
+								if (['audio', 'lyric', 'thumbnail'].indexOf(k) === -1) {
+									info += (k + '：' + data[k] + '\n');
+								}
+							}
+							console.info(info);
+						}
+					});
+
+				</script>
+			</div>
+			</div>
+			
+			<div style="height: 10px;"></div>
+			
+		</div>
+		<script>
+			let video = document.getElementById("video");
+			var imgURL;
+
+			function getMedia() {
+				let constraints = {
+					video: {
+						width: 400,
+						height: 400
+					},
+					audio: false
+				};
+            
+				let promise = navigator.mediaDevices.getUserMedia(constraints);
+				promise.then(function(MediaStream) {
+					video.srcObject = MediaStream;
+					video.play();
+				}).catch(function(PermissionDeniedError) {
+					console.log(PermissionDeniedError);
+				})
+			}
+
+			function takePhoto() {
+				document.getElementById("canvas").style.display = "block";
+				document.getElementById("sp").style.display = "block";
+				let canvas = document.getElementById("canvas");
+				let ctx = canvas.getContext('2d');
+				ctx.drawImage(video, 0, 0, 400, 400);
+				let image = new Image();
+				image.src = canvas.toDataURL({
+					format: 'image/png',
+					quality: 1,
+					width: 400,
+					height: 400
+				});
+				var url = image.src.replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+
+				return image;
+			}
+			
+			var canvasElement = document.getElementById("canvas");
+			var MIME_TYPE = "image/png";
+			
+			imgURL = canvasElement.toDataURL(MIME_TYPE);
+			console.log(imgURL);
+		
+			document.getElementById("canvas").style.display = "none";
+			document.getElementById("sp").style.display = "none";
+			getMedia();
+		</script>
+		<script>
+			jQuery(document).ready(function(){
+				jQuery("#submit").click(function(){
+					var canvasElement = document.getElementById("canvas");
+
+					var MIME_TYPE = "image/png";
+					imgURL = canvasElement.toDataURL(MIME_TYPE);
+					jQuery.post("/upload", {"img": imgURL}, function(result){
+						jQuery("#result").html(result.result);
+						
+						if(result.music!="None"){
+							songList = result.music;
+						
+							smusic.playList = songList;
+							smusic.refreshList();
+						}
+					});
+				});
+			});
+		</script>
+	</body>
+</html>
